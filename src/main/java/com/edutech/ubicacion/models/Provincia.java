@@ -29,6 +29,6 @@ public class Provincia
     private String nombre;
 
      @OneToMany(mappedBy = "provincia", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-     @JsonManagedReference
+     @JsonManagedReference //para la clase padre
      private List<Comuna> comunas;
 }

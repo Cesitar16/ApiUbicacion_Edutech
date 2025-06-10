@@ -33,6 +33,6 @@ public class Comuna
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "PROVINCIA_id_provincia",nullable = false)
-    @JsonBackReference 
+    @JsonBackReference //para la clase hija
     private Provincia provincia;
 }
