@@ -1,4 +1,4 @@
-package com.edutech.ubicacion.Model;
+package com.edutech.ubicacion.models;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
 
@@ -26,13 +26,13 @@ public class Comuna
     @Id // Clave primaria
     @GeneratedValue(strategy = GenerationType.IDENTITY) // Autoincremental (MySQL)
     @Column(name = "id_comuna")
-    private Integer id_comuna;
+    private Integer idComuna;
 
     @Column(nullable = false, length = 30)
     private String nombre;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "PROVINCIA_id_provincia",nullable = false)
-    @JsonBackReference
+    @JsonBackReference 
     private Provincia provincia;
 }

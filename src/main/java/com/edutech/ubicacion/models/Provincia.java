@@ -1,4 +1,4 @@
-package com.edutech.ubicacion.Model;
+package com.edutech.ubicacion.models;
 
 import java.util.List;
 
@@ -23,7 +23,7 @@ public class Provincia
     @Id // Clave primaria
     @GeneratedValue(strategy = GenerationType.IDENTITY) // Autoincremental (MySQL)
     @Column(name = "id_provincia")
-    private Integer id_provincia;
+    private Integer idProvincia;
 
     @Column(nullable = false, length = 30)
     private String nombre;
