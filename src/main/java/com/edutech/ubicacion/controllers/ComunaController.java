@@ -1,64 +1,85 @@
 package com.edutech.ubicacion.controllers;
 
-import com.edutech.ubicacion.models.Comuna;
+import com.edutech.ubicacion.dto.ComunaDTO;
 import com.edutech.ubicacion.services.ComunaService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
+import org.springframework.hateoas.Link;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/ubicacion/comunas") // Ruta base para este controlador
+@RequestMapping("/api/ubicacion/comunas")
 public class ComunaController {
 
-    @Autowired // Inyección del servicio de comuna
+    @Autowired
     private ComunaService comunaService;
 
-    // Obtener todas las comunas (GET)
+    // Métodos CRUD estándar usando DTOs
     @GetMapping
-    public ResponseEntity<List<Comuna>> getAll() {
-        return ResponseEntity.ok(comunaService.getAll());
+    public ResponseEntity<List<ComunaDTO>> getAll() {
+        return ResponseEntity.ok(comunaService.listar());
     }
 
-    // Obtener comuna por ID (GET)
     @GetMapping("/{id}")
-    public ResponseEntity<?> getById(@PathVariable Integer id) {
-        Comuna comuna = comunaService.getById(id);
-        if (comuna != null) {
-            return ResponseEntity.ok(comuna);
-        } else {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Comuna no encontrada");
-        }
+    public ResponseEntity<ComunaDTO> getById(@PathVariable Integer id) {
+        return comunaService.obtenerPorId(id)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 
-    // Crear nueva comuna (POST)
     @PostMapping
-    public ResponseEntity<Comuna> add(@RequestBody Comuna comuna) {
-        Comuna nueva = comunaService.add(comuna);
-        return ResponseEntity.status(HttpStatus.CREATED).body(nueva);
+    public ResponseEntity<ComunaDTO> add(@RequestBody ComunaDTO dto) {
+        return ResponseEntity.status(201).body(comunaService.guardar(dto));
     }
 
-    // Actualizar comuna existente (PUT)
     @PutMapping("/{id}")
-    public ResponseEntity<?> update(@PathVariable Integer id, @RequestBody Comuna comuna) {
-        Comuna actualizada = comunaService.update(id, comuna);
-        if (actualizada != null) {
-            return ResponseEntity.ok(actualizada);
-        } else {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Comuna no encontrada");
-        }
+    public ResponseEntity<ComunaDTO> update(@PathVariable Integer id, @RequestBody ComunaDTO dto) {
+        return comunaService.actualizar(id, dto)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 
-    // Eliminar comuna (DELETE)
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> delete(@PathVariable Integer id) {
-        Comuna eliminada = comunaService.delete(id);
-        if (eliminada != null) {
-            return ResponseEntity.ok(eliminada);
-        } else {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Comuna no encontrada");
+    public ResponseEntity<Void> delete(@PathVariable Integer id) {
+        return comunaService.eliminar(id)
+                ? ResponseEntity.noContent().build()
+                : ResponseEntity.notFound().build();
+    }
+
+    // ======================================================
+    // MÉTODOS HATEOAS
+    // ======================================================
+
+    @GetMapping("/hateoas/{id}")
+    public ResponseEntity<ComunaDTO> obtenerHATEOAS(@PathVariable Integer id) {
+        return comunaService.obtenerPorId(id)
+            .map(dto -> {
+                String gatewayUrl = "http://localhost:8888/api/proxy/ubicacion/comunas";
+                dto.add(Link.of(gatewayUrl + "/hateoas/" + id).withSelfRel());
+                dto.add(Link.of(gatewayUrl + "/hateoas").withRel("todas-las-comunas"));
+                dto.add(Link.of(gatewayUrl + "/" + id).withRel("eliminar").withType("DELETE"));
+                dto.add(Link.of(gatewayUrl + "/" + id).withRel("actualizar").withType("PUT"));
+                
+                // Link a su provincia
+                if (dto.getProvinciaId() != null) {
+                    String provinciaUrl = "http://localhost:8888/api/proxy/ubicacion/provincias/hateoas/" + dto.getProvinciaId();
+                    dto.add(Link.of(provinciaUrl).withRel("provincia"));
+                }
+                return ResponseEntity.ok(dto);
+            })
+            .orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/hateoas")
+    public ResponseEntity<List<ComunaDTO>> listarHATEOAS() {
+        List<ComunaDTO> comunas = comunaService.listar();
+        String gatewayUrl = "http://localhost:8888/api/proxy/ubicacion/comunas";
+        for (ComunaDTO dto : comunas) {
+            dto.add(Link.of(gatewayUrl + "/hateoas/" + dto.getIdComuna()).withSelfRel());
+            dto.add(Link.of(gatewayUrl).withRel("crear-nueva-comuna").withType("POST"));
         }
+        return ResponseEntity.ok(comunas);
     }
 }
