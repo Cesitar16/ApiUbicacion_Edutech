@@ -1,64 +1,79 @@
 package com.edutech.ubicacion.controllers;
 
-import com.edutech.ubicacion.models.Provincia;
+import com.edutech.ubicacion.dto.ProvinciaDTO;
 import com.edutech.ubicacion.services.ProvinciaService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
+import org.springframework.hateoas.Link;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/ubicacion/provincias") // Ruta base para este controlador
+@RequestMapping("/api/ubicacion/provincias")
 public class ProvinciaController {
 
-    @Autowired // Inyección del servicio de provincia
+    @Autowired
     private ProvinciaService provinciaService;
 
-    // Obtener todas las provincias (GET)
+    // Métodos CRUD estándar usando DTOs
     @GetMapping
-    public ResponseEntity<List<Provincia>> getAll() {
-        return ResponseEntity.ok(provinciaService.getAll());
+    public ResponseEntity<List<ProvinciaDTO>> getAll() {
+        return ResponseEntity.ok(provinciaService.listar());
     }
 
-    // Obtener provincia por ID (GET)
     @GetMapping("/{id}")
-    public ResponseEntity<?> getById(@PathVariable Integer id) {
-        Provincia provincia = provinciaService.getById(id);
-        if (provincia != null) {
-            return ResponseEntity.ok(provincia);
-        } else {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Provincia no encontrada");
-        }
+    public ResponseEntity<ProvinciaDTO> getById(@PathVariable Integer id) {
+        return provinciaService.obtenerPorId(id)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 
-    // Crear nueva provincia (POST)
     @PostMapping
-    public ResponseEntity<Provincia> add(@RequestBody Provincia provincia) {
-        Provincia nueva = provinciaService.add(provincia);
-        return ResponseEntity.status(HttpStatus.CREATED).body(nueva);
+    public ResponseEntity<ProvinciaDTO> add(@RequestBody ProvinciaDTO dto) {
+        return ResponseEntity.status(201).body(provinciaService.guardar(dto));
     }
 
-    // Actualizar provincia existente (PUT)
     @PutMapping("/{id}")
-    public ResponseEntity<?> update(@PathVariable Integer id, @RequestBody Provincia provincia) {
-        Provincia actualizada = provinciaService.update(id, provincia);
-        if (actualizada != null) {
-            return ResponseEntity.ok(actualizada);
-        } else {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Provincia no encontrada");
-        }
+    public ResponseEntity<ProvinciaDTO> update(@PathVariable Integer id, @RequestBody ProvinciaDTO dto) {
+        return provinciaService.actualizar(id, dto)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 
-    // Eliminar provincia (DELETE)
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> delete(@PathVariable Integer id) {
-        Provincia eliminada = provinciaService.delete(id);
-        if (eliminada != null) {
-            return ResponseEntity.ok(eliminada);
-        } else {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Provincia no encontrada");
+    public ResponseEntity<Void> delete(@PathVariable Integer id) {
+        return provinciaService.eliminar(id)
+                ? ResponseEntity.noContent().build()
+                : ResponseEntity.notFound().build();
+    }
+
+    // ======================================================
+    // MÉTODOS HATEOAS
+    // ======================================================
+
+    @GetMapping("/hateoas/{id}")
+    public ResponseEntity<ProvinciaDTO> obtenerHATEOAS(@PathVariable Integer id) {
+        return provinciaService.obtenerPorId(id)
+            .map(dto -> {
+                String gatewayUrl = "http://localhost:8888/api/proxy/ubicacion/provincias";
+                dto.add(Link.of(gatewayUrl + "/hateoas/" + id).withSelfRel());
+                dto.add(Link.of(gatewayUrl + "/hateoas").withRel("todas-las-provincias"));
+                dto.add(Link.of(gatewayUrl + "/" + id).withRel("eliminar").withType("DELETE"));
+                dto.add(Link.of(gatewayUrl + "/" + id).withRel("actualizar").withType("PUT"));
+                return ResponseEntity.ok(dto);
+            })
+            .orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/hateoas")
+    public ResponseEntity<List<ProvinciaDTO>> listarHATEOAS() {
+        List<ProvinciaDTO> provincias = provinciaService.listar();
+        String gatewayUrl = "http://localhost:8888/api/proxy/ubicacion/provincias";
+        for (ProvinciaDTO dto : provincias) {
+            dto.add(Link.of(gatewayUrl + "/hateoas/" + dto.getIdProvincia()).withSelfRel());
+            dto.add(Link.of(gatewayUrl).withRel("crear-nueva-provincia").withType("POST"));
         }
+        return ResponseEntity.ok(provincias);
     }
 }
